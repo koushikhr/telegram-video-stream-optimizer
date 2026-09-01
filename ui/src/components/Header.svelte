@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Settings, Moon, Sliders, Sparkles, FolderOpen, Plus } from "lucide-svelte";
+  import { Settings, Moon, FolderOpen, Plus, Film, Cpu } from "lucide-svelte";
 
   export let onAddFiles: () => void;
   export let onAddFolder: () => void;
@@ -10,54 +10,59 @@
   export let batchLimit: number = 0;
 </script>
 
-<header class="h-16 border-b border-slate-800 bg-slate-900/80 backdrop-blur px-6 flex items-center justify-between shrink-0 select-none">
+<header class="h-14 border-b border-[#23262f] bg-[#121418] px-5 flex items-center justify-between shrink-0 select-none">
   <div class="flex items-center gap-3">
-    <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-500 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
-      <Sparkles class="w-5 h-5 text-white" />
+    <div class="w-8 h-8 rounded-lg bg-[#2481cc]/15 border border-[#2481cc]/30 flex items-center justify-center text-[#3897e0] shadow-sm">
+      <Film class="w-4 h-4" />
     </div>
     <div>
       <div class="flex items-center gap-2">
-        <h1 class="font-bold text-sm tracking-tight text-white">Telegram Stream Optimizer</h1>
-        <span class="px-1.5 py-0.5 text-[10px] font-semibold bg-sky-500/10 text-sky-400 border border-sky-500/20 rounded-md">
+        <h1 class="font-semibold text-xs tracking-wide uppercase text-slate-100">Telegram Video Stream Optimizer</h1>
+        <span class="px-1.5 py-0.5 text-[10px] font-mono font-medium bg-[#1e222b] text-slate-300 border border-[#2c303c] rounded">
           FastStart MP4
         </span>
       </div>
-      <p class="text-xs text-slate-400 flex items-center gap-1.5">
-        <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-        <span>{gpuName}</span>
+      <p class="text-[11px] text-slate-400 mt-0.5">
+        Universal Video Transcoder & In-Stream Streamer
       </p>
     </div>
   </div>
 
-  <div class="flex items-center gap-2.5">
+  <div class="flex items-center gap-2">
+    <!-- Top Right GPU Status Badge -->
+    <div class="px-2.5 py-1 text-[11px] font-mono font-medium bg-[#1b1e26] border border-[#2c303c] rounded-md text-slate-300 flex items-center gap-2 shadow-sm mr-1">
+      <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+      <span class="text-slate-200">{gpuName}</span>
+    </div>
+
     <button
       on:click={onAddFiles}
-      class="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg flex items-center gap-1.5 transition active:scale-95 shadow-sm cursor-pointer"
+      class="px-3 py-1.5 text-xs font-medium bg-[#1b1e26] hover:bg-[#232732] text-slate-200 border border-[#2c303c] rounded-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
       title="Add video files"
     >
-      <Plus class="w-3.5 h-3.5 text-sky-400" />
+      <Plus class="w-3.5 h-3.5 text-[#3897e0]" />
       <span>Add Videos</span>
     </button>
 
     <button
       on:click={onAddFolder}
-      class="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg flex items-center gap-1.5 transition active:scale-95 shadow-sm cursor-pointer"
+      class="px-3 py-1.5 text-xs font-medium bg-[#1b1e26] hover:bg-[#232732] text-slate-200 border border-[#2c303c] rounded-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
       title="Scan entire folder recursively"
     >
-      <FolderOpen class="w-3.5 h-3.5 text-amber-400" />
+      <FolderOpen class="w-3.5 h-3.5 text-amber-400/90" />
       <span>Add Folder</span>
     </button>
 
-    <div class="h-4 w-px bg-slate-800 mx-1"></div>
+    <div class="h-4 w-px bg-[#262933] mx-1"></div>
 
     <button
       on:click={onOpenPower}
-      class={`px-3 py-1.5 text-xs font-medium border rounded-lg flex items-center gap-1.5 transition active:scale-95 shadow-sm cursor-pointer ${
+      class={`px-3 py-1.5 text-xs font-medium border rounded-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer ${
         sleepOnFinish || batchLimit > 0
           ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
-          : "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
+          : "bg-[#1b1e26] hover:bg-[#232732] text-slate-300 border-[#2c303c]"
       }`}
-      title="Laptop battery and sleep settings"
+      title="Power & batch limiting"
     >
       <Moon class="w-3.5 h-3.5" />
       <span>
@@ -73,7 +78,7 @@
 
     <button
       on:click={onOpenSettings}
-      class="p-2 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-lg transition border border-transparent hover:border-slate-700 active:scale-95 cursor-pointer"
+      class="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-[#232732] rounded-md transition border border-transparent hover:border-[#2c303c] active:scale-95 cursor-pointer"
       title="Preferences (Languages, Target Size, Hardware)"
     >
       <Settings class="w-4 h-4" />

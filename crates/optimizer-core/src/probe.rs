@@ -2,7 +2,6 @@ use crate::models::{AudioTrack, MediaProbe, SubtitleTrack, VideoStream};
 use anyhow::{Context, Result};
 use serde_json::Value;
 use std::path::Path;
-use tokio::process::Command;
 
 pub async fn probe_file<P: AsRef<Path>>(path: P) -> Result<MediaProbe> {
     let path = path.as_ref().to_path_buf();
@@ -12,7 +11,7 @@ pub async fn probe_file<P: AsRef<Path>>(path: P) -> Result<MediaProbe> {
         .unwrap_or("unknown")
         .to_string();
 
-    let output = Command::new("ffprobe")
+    let output = crate::create_silent_command("ffprobe")
         .args([
             "-v",
             "quiet",

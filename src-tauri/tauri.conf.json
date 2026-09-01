@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "identifier": "com.telegram.video.stream.optimizer",
   "build": {
-    "beforeDevCommand": "npm run build",
-    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "",
     "frontendDist": "../ui/dist"
   },
   "app": {

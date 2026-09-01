@@ -1,5 +1,4 @@
 use crate::models::HardwareEncoder;
-use tokio::process::Command;
 use tracing::info;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -13,7 +12,7 @@ pub struct HardwareCapabilities {
 }
 
 pub async fn detect_hardware_encoders() -> HardwareCapabilities {
-    let output = Command::new("ffmpeg")
+    let output = crate::create_silent_command("ffmpeg")
         .args(["-encoders"])
         .output()
         .await;

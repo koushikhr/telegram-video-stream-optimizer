@@ -4,6 +4,7 @@
     QueueItem,
     OptimizationSettings,
     HardwareCapabilities,
+    TranscodeProgress,
   } from "./types";
   import Header from "./components/Header.svelte";
   import DropZone from "./components/DropZone.svelte";
@@ -165,8 +166,7 @@
         newItem.status = "Failed";
         newItem.error_message = err?.message || "Failed to analyze video file";
       }
-
-      queue = [...queue];
+      queue = queue.map((it) => (it.id === newItem.id ? { ...newItem } : it));
     }
   }
 
@@ -222,7 +222,7 @@
         activePreviewItem.plan.subtitle_config.font_size_pt = fontSz;
         (activePreviewItem.plan.subtitle_config as any).border_style = borderStyle;
       }
-      queue = [...queue];
+      queue = queue.map((it) => (it.id === activePreviewItem?.id ? { ...activePreviewItem } : it));
     }
     settings.subtitle_font_size = fontSz;
   }
@@ -239,7 +239,7 @@
 
       const plan = await createPlan(activeTrackItem.probe, settings, subIdx);
       activeTrackItem.plan = plan;
-      queue = [...queue];
+      queue = queue.map((it) => (it.id === activeTrackItem?.id ? { ...activeTrackItem } : it));
     }
   }
 
@@ -386,11 +386,11 @@
         }
       }
     }
-    queue = [...queue];
+    queue = queue.map((item) => ({ ...item }));
   }
 </script>
 
-<main class="flex flex-col h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 font-sans">
+<main class="flex flex-col h-screen w-screen overflow-hidden bg-[#0d0f12] text-slate-100 font-sans">
   <Header
     onAddFiles={handleAddFiles}
     onAddFolder={handleAddFolder}

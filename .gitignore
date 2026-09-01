@@ -4,3 +4,5 @@ ui/dist/
 *.tg_temp.mp4
 [TG] *.mp4
 *.log
+*.exe
+WebView2Loader.dll

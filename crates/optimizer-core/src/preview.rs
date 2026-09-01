@@ -2,7 +2,6 @@ use crate::models::SubtitleTrack;
 use anyhow::{Context, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use std::path::Path;
-use tokio::process::Command;
 use tracing::info;
 
 pub fn escape_ffmpeg_filter_path(path: &Path) -> String {
@@ -21,26 +20,28 @@ pub async fn generate_preview_frame(
     border_style: Option<u32>,
 ) -> Result<String> {
     let border_style = border_style.unwrap_or(1);
-    let mut cmd = Command::new("ffmpeg");
+    let mut cmd = crate::create_silent_command("ffmpeg");
 
     // Seek before input for fast lookup, with -copyts to preserve original subtitle timestamps
     let seek_time = format!("{:.2}", timestamp_secs.max(0.0));
     cmd.args(["-ss", &seek_time, "-copyts"]);
     cmd.arg("-i").arg(video_path);
 
-    let font_size = font_size.clamp(14, 48);
+    let font_size = font_size.clamp(8, 48);
+    let outline = (font_size as f64 * 0.055).clamp(0.8, 1.8);
+    let shadow = (outline * 0.4).clamp(0.3, 0.9);
 
     // Build filter complex
     let filter = if let Some(sub) = subtitle {
         let style = if border_style == 3 {
             format!(
-                "force_style='FontSize={}\\,PrimaryColour=&H00FFFFFF\\,OutlineColour=&H00000000\\,BorderStyle=3\\,Outline=2.5\\,Shadow=0\\,MarginV=28'",
+                "force_style='FontSize={}\\,PrimaryColour=&H00FFFFFF\\,OutlineColour=&H00000000\\,BorderStyle=3\\,Outline=2.0\\,Shadow=0\\,MarginV=28'",
                 font_size
             )
         } else {
             format!(
-                "force_style='FontSize={}\\,PrimaryColour=&H00FFFFFF\\,OutlineColour=&H00000000\\,BorderStyle=1\\,Outline=2.4\\,Shadow=1.2\\,MarginV=28'",
-                font_size
+                "force_style='FontSize={}\\,PrimaryColour=&H00FFFFFF\\,OutlineColour=&H00000000\\,BorderStyle=1\\,Outline={:.2}\\,Shadow={:.2}\\,MarginV=28'",
+                font_size, outline, shadow
             )
         };
 
@@ -87,7 +88,7 @@ pub async fn generate_preview_frame(
         let err = String::from_utf8_lossy(&output.stderr);
         // Fallback: generate raw frame without subtitle filter in case filter syntax failed
         info!("Subtitle filter preview failed, falling back to clean frame: {}", err);
-        let fallback_output = Command::new("ffmpeg")
+        let fallback_output = crate::create_silent_command("ffmpeg")
             .args([
                 "-ss",
                 &seek_time,

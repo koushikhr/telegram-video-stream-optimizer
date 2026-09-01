@@ -9,7 +9,6 @@ use std::process::Stdio;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::Command;
 use tokio::sync::mpsc;
 use tracing::{info, warn};
 
@@ -67,7 +66,7 @@ async fn execute_transcode_inner(
     temp_output: &Path,
     progress_tx: Option<mpsc::Sender<TranscodeProgress>>,
 ) -> Result<()> {
-    let mut cmd = Command::new("ffmpeg");
+    let mut cmd = crate::create_silent_command("ffmpeg");
     cmd.args(["-y", "-hide_banner", "-threads", "0"]);
 
     // Input file
@@ -107,18 +106,21 @@ async fn execute_transcode_inner(
 
             if job.plan.subtitle_config.enabled {
                 if let Some(sub) = &job.selected_subtitle {
-                    let font_size = job.plan.subtitle_config.font_size_pt.clamp(14, 48);
+                    let font_size = job.plan.subtitle_config.font_size_pt.clamp(8, 48);
                     let margin_v = job.plan.subtitle_config.custom_margin_v.clamp(10, 80);
                     let border_style = job.plan.subtitle_config.border_style;
+                    let outline = (font_size as f64 * 0.055).clamp(0.8, 1.8);
+                    let shadow = (outline * 0.4).clamp(0.3, 0.9);
+
                     let style = if border_style == 3 {
                         format!(
-                            "force_style='FontSize={}\\,PrimaryColour=&H00FFFFFF\\,OutlineColour=&H00000000\\,BorderStyle=3\\,Outline=2.5\\,Shadow=0\\,MarginV={}'",
+                            "force_style='FontSize={}\\,PrimaryColour=&H00FFFFFF\\,OutlineColour=&H00000000\\,BorderStyle=3\\,Outline=2.0\\,Shadow=0\\,MarginV={}'",
                             font_size, margin_v
                         )
                     } else {
                         format!(
-                            "force_style='FontSize={}\\,PrimaryColour=&H00FFFFFF\\,OutlineColour=&H00000000\\,BorderStyle=1\\,Outline=2.4\\,Shadow=1.2\\,MarginV={}'",
-                            font_size, margin_v
+                            "force_style='FontSize={}\\,PrimaryColour=&H00FFFFFF\\,OutlineColour=&H00000000\\,BorderStyle=1\\,Outline={:.2}\\,Shadow={:.2}\\,MarginV={}'",
+                            font_size, outline, shadow, margin_v
                         )
                     };
 

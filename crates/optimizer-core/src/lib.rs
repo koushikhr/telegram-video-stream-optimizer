@@ -18,3 +18,13 @@ pub use power::put_system_to_sleep;
 pub use preview::generate_preview_frame;
 pub use probe::probe_file;
 pub use transcoder::{run_transcode, TranscodeJob};
+
+#[cfg(windows)]
+pub const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+pub fn create_silent_command(program: &str) -> tokio::process::Command {
+    let mut cmd = tokio::process::Command::new(program);
+    #[cfg(windows)]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    cmd
+}

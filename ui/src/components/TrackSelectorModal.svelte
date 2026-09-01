@@ -16,28 +16,29 @@
   }
 </script>
 
-<div class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-200">
-  <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+<div class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-150">
+  <div class="bg-[#16181d] border border-[#2b2e38] rounded-xl w-full max-w-xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
     <!-- Header -->
-    <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between shrink-0">
+    <div class="px-5 py-3.5 border-b border-[#23262f] bg-[#121418] flex items-center justify-between shrink-0">
       <div>
-        <h3 class="font-semibold text-sm text-slate-100">Select Audio & Subtitle Tracks</h3>
-        <p class="text-xs text-slate-400 truncate max-w-md">{item.file_name}</p>
+        <h3 class="font-semibold text-xs uppercase tracking-wide text-slate-100">Select Audio & Subtitle Tracks</h3>
+        <p class="text-[11px] text-slate-400 truncate max-w-md mt-0.5">{item.file_name}</p>
       </div>
       <button
+        type="button"
         on:click={onClose}
-        class="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-lg transition"
+        class="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-[#20232b] rounded-md transition cursor-pointer"
       >
         <X class="w-4 h-4" />
       </button>
     </div>
 
     <!-- Body -->
-    <div class="flex-1 overflow-y-auto p-6 space-y-6">
+    <div class="flex-1 overflow-y-auto p-5 space-y-5">
       <!-- Audio Track Section -->
       <div>
-        <div class="flex items-center gap-2 mb-3">
-          <Volume2 class="w-4 h-4 text-sky-400" />
+        <div class="flex items-center gap-2 mb-2.5">
+          <Volume2 class="w-3.5 h-3.5 text-[#3897e0]" />
           <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-300">
             Audio Dialogue Track
           </h4>
@@ -46,36 +47,36 @@
         {#if !item.probe?.audio_tracks.length}
           <p class="text-xs text-slate-500 italic">No audio tracks detected</p>
         {:else}
-          <div class="space-y-2">
+          <div class="space-y-1.5">
             {#each item.probe.audio_tracks as track}
               <button
                 type="button"
                 on:click={() => (selectedAudio = track.track_index)}
-                class={`w-full text-left p-3 rounded-xl border text-xs transition flex items-center justify-between cursor-pointer ${
+                class={`w-full text-left p-2.5 rounded-lg border text-xs transition flex items-center justify-between cursor-pointer ${
                   selectedAudio === track.track_index
-                    ? "bg-sky-500/10 border-sky-500/30 text-slate-100"
-                    : "bg-slate-800/50 hover:bg-slate-800 border-slate-700/60 text-slate-300"
+                    ? "bg-[#2481cc]/15 border-[#2481cc]/40 text-slate-100"
+                    : "bg-[#1b1e26] hover:bg-[#222630] border-[#2c303c] text-slate-300"
                 }`}
               >
                 <div>
                   <div class="flex items-center gap-2 font-medium">
                     <span>{getLanguageName(track.language)}</span>
-                    <span class="text-slate-500 font-mono">({track.codec_name.toUpperCase()})</span>
+                    <span class="text-slate-500 font-mono text-[11px]">({track.codec_name.toUpperCase()})</span>
                     {#if track.is_default}
-                      <span class="px-1.5 py-0.5 rounded text-[10px] bg-slate-700 text-slate-300">Default</span>
+                      <span class="px-1.5 py-0.2 rounded text-[10px] bg-[#272b36] text-slate-300">Default</span>
                     {/if}
                     {#if track.is_commentary}
-                      <span class="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300">Commentary</span>
+                      <span class="px-1.5 py-0.2 rounded text-[10px] bg-amber-500/20 text-amber-300">Commentary</span>
                     {/if}
                   </div>
-                  <div class="text-[11px] text-slate-400 mt-0.5">
+                  <div class="text-[11px] text-slate-400 mt-0.5 font-mono">
                     {track.channels} Channels ({track.channel_layout}) {track.title ? `• ${track.title}` : ""}
                   </div>
                 </div>
 
                 {#if selectedAudio === track.track_index}
-                  <div class="w-5 h-5 rounded-full bg-sky-500 flex items-center justify-center text-white shrink-0">
-                    <Check class="w-3 h-3" />
+                  <div class="w-4 h-4 rounded-full bg-[#2481cc] flex items-center justify-center text-white shrink-0">
+                    <Check class="w-2.5 h-2.5" />
                   </div>
                 {/if}
               </button>
@@ -86,22 +87,22 @@
 
       <!-- Subtitle Track Section -->
       <div>
-        <div class="flex items-center gap-2 mb-3">
-          <Subtitles class="w-4 h-4 text-indigo-400" />
+        <div class="flex items-center gap-2 mb-2.5">
+          <Subtitles class="w-3.5 h-3.5 text-[#3897e0]" />
           <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-300">
             Subtitle Track (Burn-in)
           </h4>
         </div>
 
-        <div class="space-y-2">
+        <div class="space-y-1.5">
           <!-- Option: No Subtitles -->
           <button
             type="button"
             on:click={() => (selectedSub = undefined)}
-            class={`w-full text-left p-3 rounded-xl border text-xs transition flex items-center justify-between cursor-pointer ${
+            class={`w-full text-left p-2.5 rounded-lg border text-xs transition flex items-center justify-between cursor-pointer ${
               selectedSub === undefined
-                ? "bg-indigo-500/10 border-indigo-500/30 text-slate-100"
-                : "bg-slate-800/50 hover:bg-slate-800 border-slate-700/60 text-slate-400"
+                ? "bg-[#2481cc]/15 border-[#2481cc]/40 text-slate-100"
+                : "bg-[#1b1e26] hover:bg-[#222630] border-[#2c303c] text-slate-400"
             }`}
           >
             <div>
@@ -109,8 +110,8 @@
               <div class="text-[11px] text-slate-500">Do not burn any subtitles into the stream</div>
             </div>
             {#if selectedSub === undefined}
-              <div class="w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center text-white shrink-0">
-                <Check class="w-3 h-3" />
+              <div class="w-4 h-4 rounded-full bg-[#2481cc] flex items-center justify-center text-white shrink-0">
+                <Check class="w-2.5 h-2.5" />
               </div>
             {/if}
           </button>
@@ -121,24 +122,24 @@
               <button
                 type="button"
                 on:click={() => (selectedSub = track.track_index)}
-                class={`w-full text-left p-3 rounded-xl border text-xs transition flex items-center justify-between cursor-pointer ${
+                class={`w-full text-left p-2.5 rounded-lg border text-xs transition flex items-center justify-between cursor-pointer ${
                   selectedSub === track.track_index
-                    ? "bg-indigo-500/10 border-indigo-500/30 text-slate-100"
-                    : "bg-slate-800/50 hover:bg-slate-800 border-slate-700/60 text-slate-300"
+                    ? "bg-[#2481cc]/15 border-[#2481cc]/40 text-slate-100"
+                    : "bg-[#1b1e26] hover:bg-[#222630] border-[#2c303c] text-slate-300"
                 }`}
               >
                 <div>
                   <div class="flex items-center gap-2 font-medium">
                     <span>{getLanguageName(track.language)}</span>
-                    <span class="text-slate-500 font-mono">({track.codec_name.toUpperCase()})</span>
+                    <span class="text-slate-500 font-mono text-[11px]">({track.codec_name.toUpperCase()})</span>
                     {#if track.is_external}
-                      <span class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-300">External File</span>
+                      <span class="px-1.5 py-0.2 rounded text-[10px] bg-emerald-500/20 text-emerald-300">External File</span>
                     {/if}
                     {#if track.is_hearing_impaired}
-                      <span class="px-1.5 py-0.5 rounded text-[10px] bg-slate-700 text-slate-300">SDH</span>
+                      <span class="px-1.5 py-0.2 rounded text-[10px] bg-[#272b36] text-slate-300">SDH</span>
                     {/if}
                     {#if track.is_forced}
-                      <span class="px-1.5 py-0.5 rounded text-[10px] bg-purple-500/20 text-purple-300">Forced Signs</span>
+                      <span class="px-1.5 py-0.2 rounded text-[10px] bg-purple-500/20 text-purple-300">Forced Signs</span>
                     {/if}
                   </div>
                   {#if track.title}
@@ -149,8 +150,8 @@
                 </div>
 
                 {#if selectedSub === track.track_index}
-                  <div class="w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center text-white shrink-0">
-                    <Check class="w-3 h-3" />
+                  <div class="w-4 h-4 rounded-full bg-[#2481cc] flex items-center justify-center text-white shrink-0">
+                    <Check class="w-2.5 h-2.5" />
                   </div>
                 {/if}
               </button>
@@ -161,16 +162,18 @@
     </div>
 
     <!-- Footer -->
-    <div class="px-6 py-4 border-t border-slate-800 bg-slate-900/90 flex items-center justify-end gap-2 shrink-0">
+    <div class="px-5 py-3 border-t border-[#23262f] bg-[#121418] flex items-center justify-end gap-2 shrink-0">
       <button
+        type="button"
         on:click={onClose}
         class="px-3.5 py-1.5 text-xs font-medium text-slate-400 hover:text-slate-200 transition cursor-pointer"
       >
         Cancel
       </button>
       <button
+        type="button"
         on:click={handleSave}
-        class="px-4 py-1.5 text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white rounded-lg shadow-md shadow-sky-600/20 transition active:scale-95 cursor-pointer"
+        class="px-4 py-1.5 text-xs font-medium bg-[#2481cc] hover:bg-[#2075b8] text-white rounded-md transition active:scale-95 cursor-pointer shadow-sm"
       >
         Save Changes
       </button>

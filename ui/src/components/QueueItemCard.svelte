@@ -2,6 +2,7 @@
   import type { QueueItem } from "../types";
   import {
     Film,
+    Video,
     Volume2,
     Subtitles,
     Eye,
@@ -10,7 +11,6 @@
     CheckCircle2,
     AlertCircle,
     Loader2,
-    Sparkles,
     Zap,
   } from "lucide-svelte";
   import { getLanguageName } from "../lib/languages";
@@ -49,38 +49,38 @@
   );
 </script>
 
-<div class="bg-slate-900/70 border border-slate-800 hover:border-slate-700/80 rounded-xl p-4 transition-all duration-200 shadow-sm relative overflow-hidden group">
+<div class="bg-[#16181d] border border-[#23262f] hover:border-[#2f333e] rounded-xl p-4 transition-all duration-150 shadow-sm relative overflow-hidden group">
   <!-- Top row: icon, name, sizes, actions -->
   <div class="flex items-start justify-between gap-3">
     <div class="flex items-start gap-3 min-w-0 flex-1">
-      <div class="w-10 h-10 rounded-lg bg-slate-800 border border-slate-700/80 flex items-center justify-center shrink-0 text-slate-400 group-hover:text-sky-400 transition-colors">
+      <div class="w-9 h-9 rounded-lg bg-[#1e222b] border border-[#2c303c] flex items-center justify-center shrink-0 text-slate-400 group-hover:text-[#3897e0] transition-colors">
         {#if item.status === "Processing"}
-          <Loader2 class="w-5 h-5 text-sky-400 animate-spin" />
+          <Loader2 class="w-4 h-4 text-[#3897e0] animate-spin" />
         {:else if item.status === "Completed"}
-          <CheckCircle2 class="w-5 h-5 text-emerald-400" />
+          <CheckCircle2 class="w-4 h-4 text-emerald-400" />
         {:else if item.status === "Failed"}
-          <AlertCircle class="w-5 h-5 text-rose-400" />
+          <AlertCircle class="w-4 h-4 text-rose-400" />
         {:else}
-          <Film class="w-5 h-5" />
+          <Film class="w-4 h-4" />
         {/if}
       </div>
 
       <div class="min-w-0 flex-1">
         <div class="flex items-center gap-2 mb-1">
-          <span class="font-medium text-sm text-slate-100 truncate block title={item.file_name}">
+          <span class="font-medium text-xs text-slate-100 truncate block title={item.file_name}">
             {item.file_name}
           </span>
         </div>
 
         <div class="flex items-center gap-2.5 text-xs text-slate-400 flex-wrap">
-          <span>Input: <strong class="text-slate-200 font-medium">{formatBytes(item.file_size_bytes)}</strong></span>
+          <span>Input: <strong class="text-slate-200 font-medium">{formatBytes(item.file_size_bytes || item.probe?.file_size_bytes || 0)}</strong></span>
           <span class="text-slate-600">•</span>
-          <span>{formatTime(item.duration_seconds)}</span>
+          <span>{formatTime(item.duration_seconds || item.probe?.duration_seconds || 0)}</span>
           {#if item.plan}
             <span class="text-slate-600">•</span>
-            <span class="px-2 py-0.5 rounded-md bg-sky-500/10 border border-sky-500/20 text-sky-400 font-medium flex items-center gap-1">
-              <span>Est. Output:</span>
-              <strong class="font-mono font-semibold text-sky-300">
+            <span class="px-2 py-0.5 rounded bg-[#1e222b] border border-[#2c303c] text-slate-200 font-medium flex items-center gap-1.5">
+              <span class="text-slate-400">Est. Output:</span>
+              <strong class="font-mono font-semibold text-[#3897e0]">
                 ~{formatBytes(item.plan.estimated_output_size_bytes || item.file_size_bytes)}
               </strong>
             </span>
@@ -95,16 +95,18 @@
     <!-- Actions -->
     <div class="flex items-center gap-1 shrink-0">
       <button
+        type="button"
         on:click={() => onPreview(item)}
-        class="p-1.5 text-slate-400 hover:text-sky-300 hover:bg-slate-800 rounded-lg transition active:scale-95 cursor-pointer"
+        class="p-1.5 text-slate-400 hover:text-white hover:bg-[#20232b] rounded-md transition cursor-pointer"
         title="Live video quality & subtitle preview"
       >
         <Eye class="w-4 h-4" />
       </button>
 
       <button
+        type="button"
         on:click={() => onSelectTracks(item)}
-        class="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition active:scale-95 cursor-pointer"
+        class="p-1.5 text-slate-400 hover:text-white hover:bg-[#20232b] rounded-md transition cursor-pointer"
         title="Choose audio & subtitle tracks"
       >
         <SlidersHorizontal class="w-4 h-4" />
@@ -112,8 +114,9 @@
 
       {#if item.status !== "Processing"}
         <button
+          type="button"
           on:click={() => onRemove(item.id)}
-          class="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition active:scale-95 cursor-pointer"
+          class="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-md transition cursor-pointer"
           title="Remove from queue"
         >
           <Trash2 class="w-4 h-4" />
@@ -126,42 +129,42 @@
   <div class="mt-3 flex flex-wrap items-center gap-2">
     <!-- Strategy Badge -->
     {#if item.plan?.strategy === "DirectRemux"}
-      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-[#1e222b] text-emerald-400 border border-[#2c303c]">
         <Zap class="w-3 h-3" />
-        <span>Lossless Remux (0% Quality Loss)</span>
+        <span>Direct Remux (Stream Copy)</span>
       </span>
     {:else if item.plan?.strategy === "TranscodeH264"}
-      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-sky-500/10 text-sky-400 border border-sky-500/20">
-        <Sparkles class="w-3 h-3" />
-        <span>H.264 High-Quality ({item.plan.target_video_bitrate_kbps}k)</span>
+      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-[#1e222b] text-slate-300 border border-[#2c303c]">
+        <Video class="w-3 h-3 text-[#3897e0]" />
+        <span>H.264 NVENC ({item.plan.target_video_bitrate_kbps} kbps)</span>
       </span>
     {/if}
 
     <!-- Audio Badge -->
     {#if currentAudio}
-      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-800 text-slate-300 border border-slate-700">
-        <Volume2 class="w-3 h-3 text-sky-400" />
+      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-[#1e222b] text-slate-300 border border-[#2c303c]">
+        <Volume2 class="w-3 h-3 text-[#3897e0]" />
         <span>{getLanguageName(currentAudio.language)}</span>
         {#if currentAudio.channels > 2}
-          <span class="text-[10px] text-amber-400">-> Stereo</span>
+          <span class="text-[10px] text-amber-400/90 font-mono">-> Stereo</span>
         {/if}
       </span>
     {/if}
 
     <!-- Subtitle Badge -->
     {#if currentSub}
-      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
-        <Subtitles class="w-3 h-3 text-indigo-400" />
-        <span>Burn: {getLanguageName(currentSub.language)} ({item.plan?.subtitle_config.font_size_pt || 24}pt)</span>
+      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-[#1e222b] text-slate-300 border border-[#2c303c]">
+        <Subtitles class="w-3 h-3 text-[#3897e0]" />
+        <span>Burn: {getLanguageName(currentSub.language)} {currentSub.is_hearing_impaired || currentSub.title.toLowerCase().includes("sdh") ? "(SDH)" : ""} ({item.plan?.subtitle_config.font_size_pt || 24}pt)</span>
       </span>
     {:else if item.status === "NeedsReview"}
-      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-500/10 text-amber-300 border border-amber-500/20">
+      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-amber-500/10 text-amber-300 border border-amber-500/20">
         <AlertCircle class="w-3 h-3 text-amber-400" />
         <span>Subtitle Review Suggested</span>
       </span>
     {:else}
-      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-800 text-slate-400 border border-slate-700/60">
-        <Subtitles class="w-3 h-3 opacity-50" />
+      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-[#1e222b] text-slate-500 border border-[#2c303c]">
+        <Subtitles class="w-3 h-3 opacity-40" />
         <span>No Subtitles</span>
       </span>
     {/if}

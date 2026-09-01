@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "crates/optimizer-core",
+    "crates/optimizer-cli",
+    "src-tauri",
+]
+resolver = "2"

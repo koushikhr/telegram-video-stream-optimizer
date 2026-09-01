@@ -1,0 +1,25 @@
+[package]
+name = "optimizer-core"
+version = "0.1.0"
+edition = "2021"
+authors = ["Telegram Video Stream Optimizer"]
+description = "Core video stream optimization, ffprobe parsing, bitrate math, subtitle burning, and transcode pipeline for Telegram"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+thiserror = "2.0"
+tokio = { version = "1.40", features = ["rt-multi-thread", "process", "sync", "fs", "io-util", "time"] }
+regex = "1.10"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tempfile = "3.12"
+base64 = "0.22"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+    "Win32_System_Power",
+    "Win32_System_Threading",
+    "Win32_Foundation"
+] }

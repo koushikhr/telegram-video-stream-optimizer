@@ -86,7 +86,8 @@ export async function generatePreview(
   filePath: string,
   timestamp: number,
   subTrackIndex: number | undefined,
-  fontSize: number
+  fontSize: number,
+  borderStyle: number = 1
 ): Promise<string> {
   if (isTauri()) {
     const { invoke } = await import("@tauri-apps/api/core");
@@ -95,6 +96,7 @@ export async function generatePreview(
       timestamp,
       subTrackIndex: subTrackIndex ?? null,
       fontSize,
+      borderStyle,
     });
   }
   // Return a mock canvas placeholder if running outside Tauri

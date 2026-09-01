@@ -92,6 +92,7 @@ pub struct SubtitleBurnConfig {
     pub track_index: Option<usize>,
     pub font_size_pt: u32, // Default 24 (range 16 to 40)
     pub custom_margin_v: u32, // Default 28
+    pub border_style: u32, // 1 = Clean Outline (Netflix), 3 = Black Box
 }
 
 impl Default for SubtitleBurnConfig {
@@ -101,6 +102,7 @@ impl Default for SubtitleBurnConfig {
             track_index: None,
             font_size_pt: 24,
             custom_margin_v: 28,
+            border_style: 1,
         }
     }
 }

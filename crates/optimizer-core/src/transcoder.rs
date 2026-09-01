@@ -109,10 +109,18 @@ async fn execute_transcode_inner(
                 if let Some(sub) = &job.selected_subtitle {
                     let font_size = job.plan.subtitle_config.font_size_pt.clamp(14, 48);
                     let margin_v = job.plan.subtitle_config.custom_margin_v.clamp(10, 80);
-                    let style = format!(
-                        "force_style='FontSize={},PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=3,Outline=2.5,Shadow=0,MarginV={}'",
-                        font_size, margin_v
-                    );
+                    let border_style = job.plan.subtitle_config.border_style;
+                    let style = if border_style == 3 {
+                        format!(
+                            "force_style='FontSize={}\\,PrimaryColour=&H00FFFFFF\\,OutlineColour=&H00000000\\,BorderStyle=3\\,Outline=2.5\\,Shadow=0\\,MarginV={}'",
+                            font_size, margin_v
+                        )
+                    } else {
+                        format!(
+                            "force_style='FontSize={}\\,PrimaryColour=&H00FFFFFF\\,OutlineColour=&H00000000\\,BorderStyle=1\\,Outline=2.4\\,Shadow=1.2\\,MarginV={}'",
+                            font_size, margin_v
+                        )
+                    };
 
                     if let Some(ext_path) = &sub.file_path {
                         let escaped = escape_ffmpeg_filter_path(ext_path);

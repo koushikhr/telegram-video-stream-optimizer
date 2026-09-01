@@ -8,9 +8,10 @@
   export let isLoading: boolean = false;
   export let fontSize: number = 24;
   export let timestamp: number = 30;
+  export let borderStyle: number = 1; // 1 = Clean Outline, 3 = Black Box
   export let onClose: () => void;
-  export let onRefresh: (fontSize: number, timestamp: number) => void;
-  export let onApplyFontSize: (fontSize: number) => void;
+  export let onRefresh: (fontSize: number, timestamp: number, borderStyle: number) => void;
+  export let onApplySubtitleConfig: (fontSize: number, borderStyle: number) => void;
 
   function formatBytes(bytes?: number): string {
     if (!bytes || bytes === 0) return "0 MB";
@@ -33,11 +34,11 @@
 
   function jumpToTime(t: number) {
     timestamp = t;
-    onRefresh(fontSize, timestamp);
+    onRefresh(fontSize, timestamp, borderStyle);
   }
 
   function handleApply() {
-    onApplyFontSize(fontSize);
+    onApplySubtitleConfig(fontSize, borderStyle);
     onClose();
   }
 
@@ -97,7 +98,7 @@
       {#if currentSub}
         <div class="absolute top-4 left-4 bg-slate-900/80 backdrop-blur border border-slate-800 rounded-lg px-2.5 py-1 text-[11px] text-slate-300 flex items-center gap-1.5 shadow">
           <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
-          <span>Subtitle: {getLanguageName(currentSub.language)} {currentSub.is_hearing_impaired || currentSub.title.toLowerCase().includes("sdh") ? "(SDH)" : ""} ({fontSize}pt)</span>
+          <span>Subtitle: {getLanguageName(currentSub.language)} {currentSub.is_hearing_impaired || currentSub.title.toLowerCase().includes("sdh") ? "(SDH)" : ""} ({fontSize}pt • {borderStyle === 1 ? 'Outline' : 'Box'})</span>
         </div>
       {:else}
         <div class="absolute top-4 left-4 bg-slate-900/80 backdrop-blur border border-slate-800 rounded-lg px-2.5 py-1 text-[11px] text-slate-400">
@@ -109,26 +110,48 @@
     <!-- Controls Area -->
     <div class="p-5 border-t border-slate-800 bg-slate-900/90 space-y-4">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Subtitle Size Control -->
-        <div>
-          <div class="flex items-center justify-between text-xs mb-1.5">
-            <span class="text-slate-300 font-medium">Subtitle Font Size</span>
-            <span class="text-sky-400 font-mono font-semibold">{fontSize} pt</span>
+        <!-- Subtitle Size & Style Control -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-300 font-medium">Subtitle Style</span>
+            <div class="flex items-center gap-1 bg-slate-800 p-0.5 rounded-lg border border-slate-700/80">
+              <button
+                type="button"
+                on:click={() => { borderStyle = 1; onRefresh(fontSize, timestamp, 1); }}
+                class="px-2.5 py-1 text-[11px] font-medium rounded-md transition {borderStyle === 1 ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}"
+              >
+                Clean Outline
+              </button>
+              <button
+                type="button"
+                on:click={() => { borderStyle = 3; onRefresh(fontSize, timestamp, 3); }}
+                class="px-2.5 py-1 text-[11px] font-medium rounded-md transition {borderStyle === 3 ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}"
+              >
+                Black Box
+              </button>
+            </div>
           </div>
-          <input
-            type="range"
-            min="16"
-            max="40"
-            step="2"
-            value={fontSize}
-            on:input={handleSliderChange}
-            class="w-full accent-sky-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer"
-          />
-          <div class="flex justify-between text-[10px] text-slate-500 mt-1">
-            <span>Small (16pt)</span>
-            <span>Standard (24pt)</span>
-            <span>Large (32pt)</span>
-            <span>Huge (40pt)</span>
+
+          <div>
+            <div class="flex items-center justify-between text-xs mb-1.5">
+              <span class="text-slate-300 font-medium">Subtitle Font Size</span>
+              <span class="text-sky-400 font-mono font-semibold">{fontSize} pt</span>
+            </div>
+            <input
+              type="range"
+              min="16"
+              max="40"
+              step="2"
+              value={fontSize}
+              on:input={handleSliderChange}
+              class="w-full accent-sky-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer"
+            />
+            <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+              <span>Small (16pt)</span>
+              <span>Standard (24pt)</span>
+              <span>Large (32pt)</span>
+              <span>Huge (40pt)</span>
+            </div>
           </div>
         </div>
 

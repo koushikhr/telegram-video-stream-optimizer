@@ -183,21 +183,26 @@
     queue = queue.filter((item) => item.id !== id);
   }
 
+  let previewBorderStyle = 1;
+
   async function handleOpenPreview(item: QueueItem) {
     activePreviewItem = item;
     previewFontSize = item.plan?.subtitle_config.font_size_pt || settings.subtitle_font_size || 24;
+    previewBorderStyle = (item.plan?.subtitle_config as any)?.border_style || 1;
     previewTimestamp = Math.min(Math.max(item.duration_seconds * 0.05, 60), 300);
-    await refreshPreview(item, previewFontSize, previewTimestamp);
+    await refreshPreview(item, previewFontSize, previewTimestamp, previewBorderStyle);
   }
 
-  async function refreshPreview(item: QueueItem, fontSz: number, timeSec: number) {
+  async function refreshPreview(item: QueueItem, fontSz: number, timeSec: number, borderStyle: number = 1) {
     isPreviewLoading = true;
+    previewBorderStyle = borderStyle;
     try {
       previewDataUrl = await generatePreview(
         item.input_path,
         timeSec,
         item.selected_subtitle_track_index,
-        fontSz
+        fontSz,
+        borderStyle
       );
     } catch (e: any) {
       console.error("Preview error:", e);
@@ -206,10 +211,11 @@
     }
   }
 
-  function handleApplyFontSize(fontSz: number) {
+  function handleApplySubtitleConfig(fontSz: number, borderStyle: number) {
     if (activePreviewItem) {
       if (activePreviewItem.plan) {
         activePreviewItem.plan.subtitle_config.font_size_pt = fontSz;
+        (activePreviewItem.plan.subtitle_config as any).border_style = borderStyle;
       }
       queue = [...queue];
     }
@@ -415,9 +421,10 @@
       isLoading={isPreviewLoading}
       fontSize={previewFontSize}
       timestamp={previewTimestamp}
+      borderStyle={previewBorderStyle}
       onClose={() => (activePreviewItem = null)}
-      onRefresh={(f, t) => activePreviewItem && refreshPreview(activePreviewItem, f, t)}
-      onApplyFontSize={handleApplyFontSize}
+      onRefresh={(f, t, b) => activePreviewItem && refreshPreview(activePreviewItem, f, t, b)}
+      onApplySubtitleConfig={handleApplySubtitleConfig}
     />
   {/if}
 

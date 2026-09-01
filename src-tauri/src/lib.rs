@@ -32,6 +32,7 @@ async fn generate_preview(
     timestamp: f64,
     sub_track_index: Option<usize>,
     font_size: u32,
+    border_style: Option<u32>,
 ) -> Result<String, String> {
     let p = Path::new(&file_path);
     let probe = probe_file(p)
@@ -42,7 +43,7 @@ async fn generate_preview(
         probe.subtitle_tracks.iter().find(|s| s.track_index == idx)
     });
 
-    generate_preview_frame(p, timestamp, sub_track, font_size)
+    generate_preview_frame(p, timestamp, sub_track, font_size, border_style)
         .await
         .map_err(|e| format!("Failed to generate frame preview: {:#}", e))
 }

@@ -109,7 +109,7 @@ async fn main() -> Result<()> {
             println!("Generating preview frame for {} at {:.1}s with font size {}...", path.display(), timestamp, font_size);
             let probe = probe_file(&path).await?;
             let sub_res = select_best_subtitle_track(&probe.subtitle_tracks, "en", None);
-            let data_url = generate_preview_frame(&path, timestamp, sub_res.selected_track, font_size).await?;
+            let data_url = generate_preview_frame(&path, timestamp, sub_res.selected_track, font_size, None).await?;
             println!("Preview generated successfully! (Data URL length: {} chars)", data_url.len());
             println!("Preview prefix: {}...", &data_url[..50.min(data_url.len())]);
         }

@@ -18,7 +18,9 @@ pub async fn generate_preview_frame(
     timestamp_secs: f64,
     subtitle: Option<&SubtitleTrack>,
     font_size: u32,
+    border_style: Option<u32>,
 ) -> Result<String> {
+    let border_style = border_style.unwrap_or(1);
     let mut cmd = Command::new("ffmpeg");
 
     // Seek before input for fast lookup, with -copyts to preserve original subtitle timestamps
@@ -30,10 +32,17 @@ pub async fn generate_preview_frame(
 
     // Build filter complex
     let filter = if let Some(sub) = subtitle {
-        let style = format!(
-            "force_style='FontSize={}\\,PrimaryColour=&H00FFFFFF\\,OutlineColour=&H00000000\\,BorderStyle=3\\,Outline=2.5\\,Shadow=0\\,MarginV=28'",
-            font_size
-        );
+        let style = if border_style == 3 {
+            format!(
+                "force_style='FontSize={}\\,PrimaryColour=&H00FFFFFF\\,OutlineColour=&H00000000\\,BorderStyle=3\\,Outline=2.5\\,Shadow=0\\,MarginV=28'",
+                font_size
+            )
+        } else {
+            format!(
+                "force_style='FontSize={}\\,PrimaryColour=&H00FFFFFF\\,OutlineColour=&H00000000\\,BorderStyle=1\\,Outline=2.4\\,Shadow=1.2\\,MarginV=28'",
+                font_size
+            )
+        };
 
         if let Some(ext_path) = &sub.file_path {
             let escaped = escape_ffmpeg_filter_path(ext_path);

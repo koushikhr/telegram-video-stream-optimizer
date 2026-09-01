@@ -257,6 +257,7 @@ pub fn create_optimization_plan(
         track_index: selected_subtitle_track_index,
         font_size_pt: settings.subtitle_font_size,
         custom_margin_v: 28,
+        border_style: 1,
     };
 
     let estimated_output_size_bytes = match strategy {

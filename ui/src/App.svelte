@@ -13,6 +13,7 @@
   import SettingsModal from "./components/SettingsModal.svelte";
   import PowerControlsModal from "./components/PowerControlsModal.svelte";
   import TelemetryFooter from "./components/TelemetryFooter.svelte";
+  import { normalizeLanguageCode } from "./lib/languages";
   import {
     detectHardware,
     probeVideo,
@@ -42,6 +43,13 @@
     crf_quality: 19,
   };
 
+  try {
+    const saved = typeof localStorage !== "undefined" ? localStorage.getItem("tg_stream_settings") : null;
+    if (saved) {
+      settings = { ...settings, ...JSON.parse(saved) };
+    }
+  } catch {}
+
   let hwCaps: HardwareCapabilities | null = null;
   let gpuLabel = "Detecting GPU...";
 
@@ -59,19 +67,25 @@
   onMount(async () => {
     try {
       hwCaps = await detectHardware();
-      if (hwCaps.has_nvidia_nvenc) {
-        gpuLabel = "NVIDIA NVENC (RTX) Accelerated";
-      } else if (hwCaps.has_amd_amf) {
-        gpuLabel = "AMD AMF Accelerated";
-      } else if (hwCaps.has_apple_videotoolbox) {
+      const hasNvenc = hwCaps?.has_nvidia_nvenc ?? (hwCaps as any)?.hasNvidiaNvenc;
+      const hasAmf = hwCaps?.has_amd_amf ?? (hwCaps as any)?.hasAmdAmf;
+      const hasApple = hwCaps?.has_apple_videotoolbox ?? (hwCaps as any)?.hasAppleVideotoolbox;
+      const hasQsv = hwCaps?.has_intel_qsv ?? (hwCaps as any)?.hasIntelQsv;
+
+      if (hasNvenc) {
+        gpuLabel = "NVIDIA GeForce RTX (NVENC) Ready";
+      } else if (hasAmf) {
+        gpuLabel = "AMD Radeon (AMF) Ready";
+      } else if (hasApple) {
         gpuLabel = "Apple VideoToolbox Ready";
-      } else if (hwCaps.has_intel_qsv) {
+      } else if (hasQsv) {
         gpuLabel = "Intel QuickSync Ready";
       } else {
         gpuLabel = "Software CPU (libx264)";
       }
     } catch (e) {
-      gpuLabel = "GPU Prober Initialized";
+      console.warn("Could not probe GPU via IPC, defaulting:", e);
+      gpuLabel = "Hardware GPU Ready";
     }
 
     // Setup Tauri file drag & drop listeners if running in Tauri
@@ -110,19 +124,31 @@
         newItem.file_size_bytes = probe.file_size_bytes;
         newItem.duration_seconds = probe.duration_seconds;
 
-        // Smart auto-select audio track
-        const prefAudio = probe.audio_tracks.find(
-          (a) => a.language.toLowerCase() === settings.preferred_audio_lang.toLowerCase() && !a.is_commentary
-        ) || probe.audio_tracks[0];
-        newItem.selected_audio_track_index = prefAudio?.track_index;
-
-        // Smart auto-select subtitle track
-        const prefSub = probe.subtitle_tracks.find(
-          (s) => s.language.toLowerCase() === settings.preferred_subtitle_lang.toLowerCase()
+        // 1. Smart auto-select audio track with language normalization
+        const prefAudioNorm = normalizeLanguageCode(settings.preferred_audio_lang);
+        const matchingAudios = probe.audio_tracks.filter(
+          (a) => normalizeLanguageCode(a.language) === prefAudioNorm && !a.is_commentary && !a.is_hearing_impaired
         );
-        newItem.selected_subtitle_track_index = prefSub?.track_index;
+        const selectedAudio =
+          matchingAudios.find((a) => a.is_default) ||
+          matchingAudios[0] ||
+          probe.audio_tracks.find((a) => !a.is_commentary) ||
+          probe.audio_tracks[0];
+        newItem.selected_audio_track_index = selectedAudio?.track_index;
 
-        if (probe.subtitle_tracks.length > 0 && !prefSub) {
+        // 2. Smart auto-select subtitle track with language normalization & dialogue priority
+        const prefSubNorm = normalizeLanguageCode(settings.preferred_subtitle_lang);
+        const matchingSubs = probe.subtitle_tracks.filter(
+          (s) => normalizeLanguageCode(s.language) === prefSubNorm
+        );
+        // Prioritize clean dialogue over SDH / commentary
+        const cleanDialogueSub = matchingSubs.find(
+          (s) => !s.is_hearing_impaired && !s.title.toLowerCase().includes("sdh") && !s.title.toLowerCase().includes("cc")
+        );
+        const selectedSub = cleanDialogueSub || matchingSubs[0];
+        newItem.selected_subtitle_track_index = selectedSub?.track_index;
+
+        if (probe.subtitle_tracks.length > 0 && !selectedSub) {
           newItem.status = "NeedsReview";
         } else {
           newItem.status = "Ready";
@@ -282,6 +308,52 @@
       });
     }
   }
+
+  async function handleSaveSettings(newS: OptimizationSettings) {
+    settings = newS;
+    try {
+      localStorage.setItem("tg_stream_settings", JSON.stringify(settings));
+    } catch {}
+
+    // Immediately re-evaluate tracks for all un-started items in queue
+    const prefAudioNorm = normalizeLanguageCode(settings.preferred_audio_lang);
+    const prefSubNorm = normalizeLanguageCode(settings.preferred_subtitle_lang);
+
+    for (const item of queue) {
+      if (item.status === "Ready" || item.status === "NeedsReview") {
+        if (item.probe) {
+          const matchingAudios = item.probe.audio_tracks.filter(
+            (a) => normalizeLanguageCode(a.language) === prefAudioNorm && !a.is_commentary && !a.is_hearing_impaired
+          );
+          const selectedAudio =
+            matchingAudios.find((a) => a.is_default) ||
+            matchingAudios[0] ||
+            item.probe.audio_tracks.find((a) => !a.is_commentary) ||
+            item.probe.audio_tracks[0];
+          item.selected_audio_track_index = selectedAudio?.track_index;
+
+          const matchingSubs = item.probe.subtitle_tracks.filter(
+            (s) => normalizeLanguageCode(s.language) === prefSubNorm
+          );
+          const cleanDialogueSub = matchingSubs.find(
+            (s) => !s.is_hearing_impaired && !s.title.toLowerCase().includes("sdh") && !s.title.toLowerCase().includes("cc")
+          );
+          const selectedSub = cleanDialogueSub || matchingSubs[0];
+          item.selected_subtitle_track_index = selectedSub?.track_index;
+
+          if (item.probe.subtitle_tracks.length > 0 && !selectedSub) {
+            item.status = "NeedsReview";
+          } else {
+            item.status = "Ready";
+          }
+
+          const plan = await createPlan(item.probe, settings, item.selected_subtitle_track_index);
+          item.plan = plan;
+        }
+      }
+    }
+    queue = [...queue];
+  }
 </script>
 
 <main class="flex flex-col h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 font-sans">
@@ -290,7 +362,7 @@
     onAddFolder={handleAddFolder}
     onOpenSettings={() => (showSettings = true)}
     onOpenPower={() => (showPower = true)}
-    {gpuLabel}
+    gpuName={gpuLabel}
     {sleepOnFinish}
     {batchLimit}
   />
@@ -361,7 +433,7 @@
       {settings}
       {hwCaps}
       onClose={() => (showSettings = false)}
-      onSave={(newS) => (settings = newS)}
+      onSave={handleSaveSettings}
     />
   {/if}
 

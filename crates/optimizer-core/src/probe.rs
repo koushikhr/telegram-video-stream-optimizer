@@ -78,11 +78,11 @@ pub async fn probe_file<P: AsRef<Path>>(path: P) -> Result<MediaProbe> {
                 .to_string();
 
             let tags = stream.get("tags");
-            let language = tags
+            let raw_lang = tags
                 .and_then(|t| t.get("language").or_else(|| t.get("lang")))
                 .and_then(|v| v.as_str())
-                .unwrap_or("und")
-                .to_lowercase();
+                .unwrap_or("und");
+            let language = crate::heuristics::normalize_language_code(raw_lang);
 
             let title = tags
                 .and_then(|t| t.get("title").or_else(|| t.get("description")))
@@ -284,13 +284,13 @@ fn discover_external_subtitles(video_path: &Path, subtitles: &mut Vec<SubtitleTr
         if file_stem.starts_with(&stem) || file_stem == stem {
             // Extract language suffix if present, e.g. "movie.en.srt" -> "en"
             let remaining = file_stem.strip_prefix(&stem).unwrap_or("");
-            let lang = remaining
+            let raw_lang = remaining
                 .trim_start_matches(|c| c == '.' || c == '_' || c == '-')
                 .split('.')
                 .next()
                 .filter(|s| !s.is_empty())
-                .unwrap_or("und")
-                .to_string();
+                .unwrap_or("und");
+            let lang = crate::heuristics::normalize_language_code(raw_lang);
 
             let title = path
                 .file_name()

@@ -21,9 +21,9 @@ pub async fn generate_preview_frame(
 ) -> Result<String> {
     let mut cmd = Command::new("ffmpeg");
 
-    // Seek before input for fast keyframe lookup
+    // Seek before input for fast lookup, with -copyts to preserve original subtitle timestamps
     let seek_time = format!("{:.2}", timestamp_secs.max(0.0));
-    cmd.args(["-ss", &seek_time]);
+    cmd.args(["-ss", &seek_time, "-copyts"]);
     cmd.arg("-i").arg(video_path);
 
     let font_size = font_size.clamp(14, 48);
@@ -31,7 +31,7 @@ pub async fn generate_preview_frame(
     // Build filter complex
     let filter = if let Some(sub) = subtitle {
         let style = format!(
-            "force_style='FontSize={},PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=3,Outline=2.5,Shadow=0,MarginV=28'",
+            "force_style='FontSize={}\\,PrimaryColour=&H00FFFFFF\\,OutlineColour=&H00000000\\,BorderStyle=3\\,Outline=2.5\\,Shadow=0\\,MarginV=28'",
             font_size
         );
 

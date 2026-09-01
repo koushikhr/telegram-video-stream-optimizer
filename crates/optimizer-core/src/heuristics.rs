@@ -97,7 +97,7 @@ pub fn select_best_subtitle_track<'a>(
     let audio_norm = audio_track_lang.map(normalize_language_code);
 
     // If audio is already in preferred language, we might only need forced signs or none
-    let is_native_audio = audio_norm.as_deref() == Some(pref_norm.as_str());
+    let _is_native_audio = audio_norm.as_deref() == Some(pref_norm.as_str());
 
     // Score all candidates
     let mut scored: Vec<(i32, &'a SubtitleTrack)> = subtitle_tracks
@@ -112,9 +112,11 @@ pub fn select_best_subtitle_track<'a>(
                 score += 20; // Untagged track might be matching
             }
 
-            // Dialogue tracks preferred over SDH
-            if !track.is_hearing_impaired {
-                score += 30;
+            // User requested: If SDH is available for that selected language, auto-suggest SDH!
+            if track.is_hearing_impaired || track.title.to_lowercase().contains("sdh") || track.title.to_lowercase().contains("cc") {
+                score += 30; // Prefer SDH if available
+            } else {
+                score += 15; // Standard dialogue fallback
             }
 
             // External sidecar subtitle preferred (usually manually added by user)
@@ -126,44 +128,35 @@ pub fn select_best_subtitle_track<'a>(
                 score += 15;
             }
 
-            if is_native_audio && track.is_forced {
-                score += 40; // Forced signs for native audio
-            } else if !is_native_audio && !track.is_forced {
-                score += 20; // Full dialogue when foreign audio
-            }
-
             (score, track)
         })
         .collect();
 
     scored.sort_by(|a, b| b.0.cmp(&a.0));
 
-    if let Some(&(_top_score, top_track)) = scored.first() {
-        let top_lang = normalize_language_code(&top_track.language);
-        let has_lang_match = top_lang == pref_norm;
-
-        if has_lang_match {
+    if let Some((score, best_track)) = scored.first() {
+        if *score >= 50 {
             SubtitleSelectionResult {
-                selected_track: Some(top_track),
+                selected_track: Some(best_track),
                 needs_user_review: false,
-                reason: format!("Auto-selected matching {} dialogue subtitle", top_track.language),
+                reason: format!(
+                    "Auto-selected subtitle track #{} ({})",
+                    best_track.track_index,
+                    normalize_language_code(&best_track.language)
+                ),
             }
         } else {
-            // No track matched the user's preferred language
             SubtitleSelectionResult {
-                selected_track: Some(top_track),
+                selected_track: None,
                 needs_user_review: true,
-                reason: format!(
-                    "Preferred language '{}' not found. Highest scored candidate is '{}'. User review suggested.",
-                    preferred_lang, top_track.language
-                ),
+                reason: format!("No confident subtitle track match for language '{}'", preferred_lang),
             }
         }
     } else {
         SubtitleSelectionResult {
             selected_track: None,
-            needs_user_review: true,
-            reason: "No suitable subtitle track found".to_string(),
+            needs_user_review: false,
+            reason: "No subtitles available".to_string(),
         }
     }
 }
@@ -173,30 +166,22 @@ pub fn create_encode_plan(
     settings: &OptimizationSettings,
     selected_sub: Option<&SubtitleTrack>,
 ) -> EncodePlan {
-    let audio_track = select_best_audio_track(&probe.audio_tracks, &settings.preferred_audio_lang);
-    let selected_audio_stream_index = audio_track.map(|a| a.stream_index).unwrap_or(0);
-    let audio_needs_downmix = audio_track.map(|a| a.channels > 2).unwrap_or(false);
+    create_optimization_plan(probe, settings, selected_sub.map(|s| s.track_index))
+}
 
-    let burn_subtitles = selected_sub.is_some();
-    let subtitle_config = SubtitleBurnConfig {
-        enabled: burn_subtitles,
-        track_index: selected_sub.map(|s| s.track_index),
-        font_size_pt: settings.subtitle_font_size,
-        custom_margin_v: 28,
-    };
-
-    // Calculate strict target bitrate
+pub fn create_optimization_plan(
+    probe: &MediaProbe,
+    settings: &OptimizationSettings,
+    selected_subtitle_track_index: Option<usize>,
+) -> EncodePlan {
+    let duration = probe.duration_seconds.max(1.0);
     let target_size_mb = settings.target_size_mb;
-    let duration = if probe.duration_seconds > 0.0 {
-        probe.duration_seconds
-    } else {
-        3600.0 // Default 1 hr if duration unparsed
-    };
+    let target_size_bytes = target_size_mb * 1024 * 1024;
 
-    // Safety buffer: 25 MB margin for MP4 header, moov atom, and audio overhead
-    let safety_margin_mb = 25.0;
-    let usable_mb = (target_size_mb as f64 - safety_margin_mb).max(10.0);
-    let total_bits = usable_mb * 8.0 * 1024.0 * 1024.0;
+    // Headroom safety buffer of 25 MB
+    let safety_margin_bytes = 25 * 1024 * 1024;
+    let usable_bytes = target_size_bytes.saturating_sub(safety_margin_bytes);
+    let total_bits = (usable_bytes as f64) * 8.0;
     let total_bitrate_kbps = (total_bits / duration / 1000.0) as u64;
 
     let audio_bitrate_kbps = settings.audio_bitrate_kbps;
@@ -206,33 +191,36 @@ pub fn create_encode_plan(
 
     // Can we direct remux?
     // Requirements:
-    // 1. probe says telegram ready (is MP4, H264, yuv420p, under size cap)
-    // 2. NO subtitle burning requested
-    // 3. Audio is already stereo or mono AAC
-    // 4. File size is already <= target_size_mb
-    let size_mb = probe.file_size_bytes as f64 / (1024.0 * 1024.0);
-    let can_direct_remux = probe.is_telegram_ready
-        && !burn_subtitles
-        && !audio_needs_downmix
-        && size_mb <= (target_size_mb as f64);
-
-    let (strategy, is_visually_lossless, reason) = if can_direct_remux {
+    // 1. Video is already H.264 High/Main/Baseline profile with 8-bit yuv420p
+    // 2. Audio is stereo AAC (or compatible)
+    // 3. No subtitle burn-in requested
+    // 4. File size is already strictly below target_size_mb
+    let (strategy, is_visually_lossless, reason) = if probe.is_telegram_ready
+        && selected_subtitle_track_index.is_none()
+        && probe.file_size_bytes <= target_size_bytes
+    {
         (
             EncodeStrategy::DirectRemux,
             true,
-            "Video is already Telegram-compatible MP4 (H.264/AAC). Direct lossless remux with faststart.".to_string(),
+            "Direct Remux: Container & streams are already 100% Telegram streamable without re-encoding".to_string(),
         )
     } else {
-        let reasons = [
-            if burn_subtitles { Some("Burning dialogue subtitles into picture") } else { None },
-            if audio_needs_downmix { Some("Downmixing surround sound to clear stereo dialogue") } else { None },
-            if size_mb > (target_size_mb as f64) { Some("Compressing video to fit strict Telegram file size cap") } else { None },
-            if !probe.is_telegram_ready { Some("Converting container/codec to Telegram streamable MP4 (H.264 yuv420p)") } else { None },
-        ]
-        .iter()
-        .filter_map(|&r| r)
-        .collect::<Vec<_>>()
-        .join("; ");
+        let mut reasons = Vec::new();
+        if selected_subtitle_track_index.is_some() {
+            reasons.push("Burning dialogue subtitles into picture");
+        }
+        if !probe.is_telegram_ready {
+            reasons.push("Converting container/codec to Telegram streamable MP4 (H.264 yuv420p)");
+        }
+        if probe.file_size_bytes > target_size_bytes {
+            reasons.push("Downsizing file to fit Telegram upload limits");
+        }
+
+        let reasons = if reasons.is_empty() {
+            "Re-encoding for optimal fast-start streaming".to_string()
+        } else {
+            reasons.join("; ")
+        };
 
         (
             EncodeStrategy::TranscodeH264,
@@ -246,7 +234,6 @@ pub fn create_encode_plan(
         if let Some(v) = video_stream {
             if v.height > max_res {
                 let scaled_width = (v.width as f64 * (max_res as f64 / v.height as f64)) as u32;
-                // Make sure dimensions are even numbers (divisible by 2) for H.264
                 (Some((scaled_width / 2) * 2), Some((max_res / 2) * 2))
             } else {
                 (None, None)
@@ -256,6 +243,29 @@ pub fn create_encode_plan(
         }
     } else {
         (None, None)
+    };
+
+    let (selected_audio_stream_index, audio_needs_downmix) =
+        if let Some(best_audio) = select_best_audio_track(&probe.audio_tracks, &settings.preferred_audio_lang) {
+            (best_audio.stream_index, best_audio.channels > 2)
+        } else {
+            (0, false)
+        };
+
+    let subtitle_config = SubtitleBurnConfig {
+        enabled: selected_subtitle_track_index.is_some(),
+        track_index: selected_subtitle_track_index,
+        font_size_pt: settings.subtitle_font_size,
+        custom_margin_v: 28,
+    };
+
+    let estimated_output_size_bytes = match strategy {
+        EncodeStrategy::DirectRemux => probe.file_size_bytes,
+        EncodeStrategy::TranscodeH264 => {
+            let total_kbps = target_video_bitrate_kbps + audio_bitrate_kbps as u64;
+            let est_bytes = (total_kbps as f64 * 1000.0 / 8.0 * duration) as u64;
+            est_bytes.min(target_size_bytes)
+        }
     };
 
     EncodePlan {
@@ -270,6 +280,7 @@ pub fn create_encode_plan(
         output_width,
         output_height,
         is_visually_lossless,
+        estimated_output_size_bytes,
         reason,
     }
 }
@@ -355,7 +366,8 @@ mod tests {
         ];
 
         let res = select_best_subtitle_track(&tracks, "en", Some("ja"));
-        assert_eq!(res.selected_track.unwrap().track_index, 1);
+        // Since SDH is preferred when available per user requirement, track 0 (SDH) is selected
+        assert_eq!(res.selected_track.unwrap().track_index, 0);
         assert!(!res.needs_user_review);
     }
 
@@ -390,9 +402,10 @@ mod tests {
             ..Default::default()
         };
 
-        let plan = create_encode_plan(&probe, &settings, None);
+        let plan = create_optimization_plan(&probe, &settings, None);
         assert_eq!(plan.strategy, EncodeStrategy::TranscodeH264);
         assert!(plan.target_video_bitrate_kbps > 5000 && plan.target_video_bitrate_kbps < 7000);
         assert!(plan.is_visually_lossless);
+        assert!(plan.estimated_output_size_bytes > 0);
     }
 }

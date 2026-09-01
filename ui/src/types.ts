@@ -83,6 +83,7 @@ export interface EncodePlan {
   output_width?: number;
   output_height?: number;
   is_visually_lossless: boolean;
+  estimated_output_size_bytes: number;
   reason: string;
 }
 

@@ -12,6 +12,15 @@
   export let onRefresh: (fontSize: number, timestamp: number) => void;
   export let onApplyFontSize: (fontSize: number) => void;
 
+  function formatBytes(bytes?: number): string {
+    if (!bytes || bytes === 0) return "0 MB";
+    const mb = bytes / (1024 * 1024);
+    if (mb >= 1024) {
+      return `${(mb / 1024).toFixed(2)} GB`;
+    }
+    return `${mb.toFixed(1)} MB`;
+  }
+
   function handleSliderChange(e: Event) {
     const val = parseInt((e.target as HTMLInputElement).value, 10);
     fontSize = val;
@@ -20,6 +29,11 @@
   function handleTimeChange(e: Event) {
     const val = parseFloat((e.target as HTMLInputElement).value);
     timestamp = val;
+  }
+
+  function jumpToTime(t: number) {
+    timestamp = t;
+    onRefresh(fontSize, timestamp);
   }
 
   function handleApply() {
@@ -41,7 +55,14 @@
           <Eye class="w-4 h-4" />
         </div>
         <div>
-          <h3 class="font-semibold text-sm text-slate-100">Live Video & Subtitle Preview</h3>
+          <div class="flex items-center gap-2">
+            <h3 class="font-semibold text-sm text-slate-100">Live Video & Subtitle Preview</h3>
+            {#if item.plan?.estimated_output_size_bytes}
+              <span class="px-2 py-0.5 text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-md">
+                Est. Final Size: ~{formatBytes(item.plan.estimated_output_size_bytes)}
+              </span>
+            {/if}
+          </div>
           <p class="text-xs text-slate-400 truncate max-w-lg">{item.file_name}</p>
         </div>
       </div>
@@ -76,7 +97,7 @@
       {#if currentSub}
         <div class="absolute top-4 left-4 bg-slate-900/80 backdrop-blur border border-slate-800 rounded-lg px-2.5 py-1 text-[11px] text-slate-300 flex items-center gap-1.5 shadow">
           <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
-          <span>Subtitle: {getLanguageName(currentSub.language)} ({fontSize}pt)</span>
+          <span>Subtitle: {getLanguageName(currentSub.language)} {currentSub.is_hearing_impaired || currentSub.title.toLowerCase().includes("sdh") ? "(SDH)" : ""} ({fontSize}pt)</span>
         </div>
       {:else}
         <div class="absolute top-4 left-4 bg-slate-900/80 backdrop-blur border border-slate-800 rounded-lg px-2.5 py-1 text-[11px] text-slate-400">
@@ -115,21 +136,50 @@
         <div>
           <div class="flex items-center justify-between text-xs mb-1.5">
             <span class="text-slate-300 font-medium">Scene Timestamp</span>
-            <span class="text-slate-400 font-mono">{timestamp.toFixed(0)}s</span>
+            <span class="text-slate-400 font-mono">{timestamp.toFixed(0)}s ({Math.floor(timestamp / 60)}m {Math.floor(timestamp % 60)}s)</span>
           </div>
           <input
             type="range"
-            min="10"
-            max={Math.min(item.duration_seconds || 600, 600)}
-            step="10"
+            min="5"
+            max={Math.min(item.duration_seconds || 1200, 1200)}
+            step="5"
             value={timestamp}
             on:input={handleTimeChange}
             class="w-full accent-indigo-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer"
           />
-          <div class="flex justify-between text-[10px] text-slate-500 mt-1">
-            <span>Start</span>
-            <span>Mid-scene</span>
-            <span>Check dialogue scene</span>
+          <!-- Quick dialogue scene jump buttons -->
+          <div class="flex items-center gap-1.5 mt-2">
+            <span class="text-[10px] text-slate-500">Jump to:</span>
+            <button
+              on:click={() => jumpToTime(30)}
+              class="px-2 py-0.5 text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700/80 transition"
+            >
+              30s
+            </button>
+            <button
+              on:click={() => jumpToTime(60)}
+              class="px-2 py-0.5 text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700/80 transition"
+            >
+              1m
+            </button>
+            <button
+              on:click={() => jumpToTime(120)}
+              class="px-2 py-0.5 text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700/80 transition"
+            >
+              2m
+            </button>
+            <button
+              on:click={() => jumpToTime(300)}
+              class="px-2 py-0.5 text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700/80 transition"
+            >
+              5m
+            </button>
+            <button
+              on:click={() => jumpToTime(600)}
+              class="px-2 py-0.5 text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700/80 transition"
+            >
+              10m
+            </button>
           </div>
         </div>
       </div>

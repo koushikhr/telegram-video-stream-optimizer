@@ -145,6 +145,7 @@ pub struct EncodePlan {
     pub output_width: Option<u32>,
     pub output_height: Option<u32>,
     pub is_visually_lossless: bool,
+    pub estimated_output_size_bytes: u64,
     pub reason: String,
 }
 

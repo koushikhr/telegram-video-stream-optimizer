@@ -72,14 +72,20 @@
           </span>
         </div>
 
-        <div class="flex items-center gap-3 text-xs text-slate-400">
-          <span>{formatBytes(item.file_size_bytes)}</span>
+        <div class="flex items-center gap-2.5 text-xs text-slate-400 flex-wrap">
+          <span>Input: <strong class="text-slate-200 font-medium">{formatBytes(item.file_size_bytes)}</strong></span>
           <span class="text-slate-600">•</span>
           <span>{formatTime(item.duration_seconds)}</span>
           {#if item.plan}
             <span class="text-slate-600">•</span>
-            <span class="text-slate-300 font-mono">
-              Cap: {item.plan.target_size_mb} MB
+            <span class="px-2 py-0.5 rounded-md bg-sky-500/10 border border-sky-500/20 text-sky-400 font-medium flex items-center gap-1">
+              <span>Est. Output:</span>
+              <strong class="font-mono font-semibold text-sky-300">
+                ~{formatBytes(item.plan.estimated_output_size_bytes || item.file_size_bytes)}
+              </strong>
+            </span>
+            <span class="text-slate-500 text-[11px] font-mono">
+              (Cap: {item.plan.target_size_mb} MB)
             </span>
           {/if}
         </div>

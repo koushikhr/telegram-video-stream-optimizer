@@ -136,16 +136,16 @@
           probe.audio_tracks[0];
         newItem.selected_audio_track_index = selectedAudio?.track_index;
 
-        // 2. Smart auto-select subtitle track with language normalization & dialogue priority
+        // 2. Smart auto-select subtitle track: PREFER SDH IF AVAILABLE!
         const prefSubNorm = normalizeLanguageCode(settings.preferred_subtitle_lang);
         const matchingSubs = probe.subtitle_tracks.filter(
           (s) => normalizeLanguageCode(s.language) === prefSubNorm
         );
-        // Prioritize clean dialogue over SDH / commentary
-        const cleanDialogueSub = matchingSubs.find(
-          (s) => !s.is_hearing_impaired && !s.title.toLowerCase().includes("sdh") && !s.title.toLowerCase().includes("cc")
+        // User requested: "If SDH is available of that selected language can we have auto suggest of that"
+        const sdhSub = matchingSubs.find(
+          (s) => s.is_hearing_impaired || s.title.toLowerCase().includes("sdh") || s.title.toLowerCase().includes("cc")
         );
-        const selectedSub = cleanDialogueSub || matchingSubs[0];
+        const selectedSub = sdhSub || matchingSubs[0];
         newItem.selected_subtitle_track_index = selectedSub?.track_index;
 
         if (probe.subtitle_tracks.length > 0 && !selectedSub) {
@@ -186,7 +186,7 @@
   async function handleOpenPreview(item: QueueItem) {
     activePreviewItem = item;
     previewFontSize = item.plan?.subtitle_config.font_size_pt || settings.subtitle_font_size || 24;
-    previewTimestamp = Math.min(item.duration_seconds * 0.1 || 30, 120);
+    previewTimestamp = Math.min(Math.max(item.duration_seconds * 0.05, 60), 300);
     await refreshPreview(item, previewFontSize, previewTimestamp);
   }
 
@@ -335,10 +335,11 @@
           const matchingSubs = item.probe.subtitle_tracks.filter(
             (s) => normalizeLanguageCode(s.language) === prefSubNorm
           );
-          const cleanDialogueSub = matchingSubs.find(
-            (s) => !s.is_hearing_impaired && !s.title.toLowerCase().includes("sdh") && !s.title.toLowerCase().includes("cc")
+          // User requested: "If SDH is available of that selected language can we have auto suggest of that"
+          const sdhSub = matchingSubs.find(
+            (s) => s.is_hearing_impaired || s.title.toLowerCase().includes("sdh") || s.title.toLowerCase().includes("cc")
           );
-          const selectedSub = cleanDialogueSub || matchingSubs[0];
+          const selectedSub = sdhSub || matchingSubs[0];
           item.selected_subtitle_track_index = selectedSub?.track_index;
 
           if (item.probe.subtitle_tracks.length > 0 && !selectedSub) {

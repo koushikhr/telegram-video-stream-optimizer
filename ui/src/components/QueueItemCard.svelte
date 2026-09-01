@@ -168,20 +168,26 @@
   </div>
 
   <!-- Progress bar if processing -->
-  {#if item.status === "Processing" && item.progress}
+  {#if item.status === "Processing"}
     <div class="mt-3 pt-3 border-t border-slate-800">
       <div class="flex items-center justify-between text-xs mb-1.5 font-mono">
-        <span class="text-sky-400 font-semibold">{item.progress.stage} ({item.progress.percent.toFixed(1)}%)</span>
+        <span class="text-sky-400 font-semibold">{item.progress?.stage || 'Initializing GPU Encoder...'} ({item.progress?.percent ? item.progress.percent.toFixed(1) : '0.0'}%)</span>
         <div class="flex items-center gap-3 text-slate-400">
-          <span>{item.progress.fps.toFixed(0)} fps</span>
-          <span class="text-sky-400 font-semibold">{item.progress.speed_multiplier.toFixed(1)}x</span>
-          <span>ETA: {formatTime(item.progress.eta_seconds)}</span>
+          {#if item.progress && item.progress.fps > 0}
+            <span>{item.progress.fps.toFixed(0)} fps</span>
+          {/if}
+          {#if item.progress && item.progress.speed_multiplier > 0}
+            <span class="text-sky-400 font-semibold">{item.progress.speed_multiplier.toFixed(1)}x</span>
+          {/if}
+          {#if item.progress && item.progress.eta_seconds > 0}
+            <span>ETA: {formatTime(item.progress.eta_seconds)}</span>
+          {/if}
         </div>
       </div>
       <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
         <div
           class="h-full bg-gradient-to-r from-sky-500 to-blue-600 rounded-full transition-all duration-300"
-          style="width: {item.progress.percent}%"
+          style="width: {item.progress?.percent || 1}%"
         ></div>
       </div>
     </div>

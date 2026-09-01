@@ -74,14 +74,19 @@
 
       if (hasNvenc) {
         gpuLabel = "NVIDIA GeForce RTX (NVENC) Ready";
+        settings.hardware_encoder = "NvidiaNvenc";
       } else if (hasAmf) {
         gpuLabel = "AMD Radeon (AMF) Ready";
+        settings.hardware_encoder = "AmdAmf";
       } else if (hasApple) {
         gpuLabel = "Apple VideoToolbox Ready";
+        settings.hardware_encoder = "AppleVideoToolbox";
       } else if (hasQsv) {
         gpuLabel = "Intel QuickSync Ready";
+        settings.hardware_encoder = "IntelQsv";
       } else {
         gpuLabel = "Software CPU (libx264)";
+        settings.hardware_encoder = "CpuX264";
       }
     } catch (e) {
       console.warn("Could not probe GPU via IPC, defaulting:", e);
@@ -254,15 +259,37 @@
       }
 
       item.status = "Processing";
+      item.progress = {
+        percent: 0.1,
+        fps: 0,
+        speed_multiplier: 1.0,
+        current_time_secs: 0,
+        total_duration_secs: item.duration_seconds || 1,
+        eta_seconds: 0,
+        current_size_bytes: 0,
+        target_size_bytes: (item.plan?.target_size_mb || 1980) * 1024 * 1024,
+        stage: "Initializing GPU...",
+      };
       queue = [...queue];
 
       try {
         if (isTauri()) {
           const { invoke } = await import("@tauri-apps/api/core");
-          await invoke("start_transcode_item", {
-            item,
-            fontSz: item.plan?.subtitle_config.font_size_pt || settings.subtitle_font_size,
+          const { listen } = await import("@tauri-apps/api/event");
+
+          const unlisten = await listen<TranscodeProgress>(`progress_${item.id}`, (event) => {
+            item.progress = event.payload;
+            queue = [...queue];
           });
+
+          try {
+            await invoke("start_transcode_item", {
+              item,
+              fontSz: item.plan?.subtitle_config.font_size_pt || settings.subtitle_font_size,
+            });
+          } finally {
+            unlisten();
+          }
         } else {
           // Browser simulation: simulate smooth progress
           for (let p = 0; p <= 100; p += 10) {

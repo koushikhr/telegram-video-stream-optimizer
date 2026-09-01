@@ -1,13 +1,13 @@
 use optimizer_core::{
     create_encode_plan, detect_hardware_encoders, generate_preview_frame,
-    probe_file, put_system_to_sleep, run_transcode, EncodePlan, HardwareCapabilities, MediaProbe,
+    probe_file, put_system_to_sleep, run_transcode, EncodePlan, HardwareCapabilities, HardwareEncoder, MediaProbe,
     OptimizationSettings, QueueItem, SubtitleTrack, TranscodeJob, TranscodeProgress,
 };
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
-use tokio::sync::broadcast;
+use tokio::sync::mpsc;
 use walkdir::WalkDir;
 
 pub struct AppState {
@@ -54,10 +54,9 @@ fn create_plan(
     settings: OptimizationSettings,
     sub_track_index: Option<usize>,
 ) -> EncodePlan {
-    let sub_track = sub_track_index.and_then(|idx| {
+    create_encode_plan(&probe, &settings, sub_track_index.and_then(|idx| {
         probe.subtitle_tracks.iter().find(|s| s.track_index == idx)
-    });
-    create_encode_plan(&probe, &settings, sub_track)
+    }))
 }
 
 #[tauri::command]
@@ -101,18 +100,24 @@ async fn start_transcode_item(
 
     plan.subtitle_config.font_size_pt = font_sz;
 
+    // Enforce hardware acceleration: If Auto or CPU, detect GPU and use best hardware encoder (e.g. RTX NVENC)
+    if plan.encoder == HardwareEncoder::Auto || plan.encoder == HardwareEncoder::CpuX264 {
+        let hw = detect_hardware_encoders().await;
+        plan.encoder = hw.recommended_encoder;
+    }
+
     let selected_sub: Option<SubtitleTrack> = item.selected_subtitle_track_index.and_then(|idx| {
         probe.subtitle_tracks.iter().find(|s| s.track_index == idx).cloned()
     });
 
     state.cancel_flag.store(false, Ordering::Relaxed);
 
-    let (progress_tx, mut progress_rx) = broadcast::channel::<TranscodeProgress>(32);
+    let (progress_tx, mut progress_rx) = mpsc::channel::<TranscodeProgress>(128);
 
     let app_clone = app.clone();
     let item_id = item.id.clone();
     tokio::spawn(async move {
-        while let Ok(prog) = progress_rx.recv().await {
+        while let Some(prog) = progress_rx.recv().await {
             let _ = app_clone.emit(&format!("progress_{}", item_id), &prog);
         }
     });

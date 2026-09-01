@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
-use tokio::sync::broadcast;
+use tokio::sync::mpsc;
 use tracing::{info, warn};
 
 pub struct TranscodeJob {
@@ -24,7 +24,7 @@ pub struct TranscodeJob {
 
 pub async fn run_transcode(
     job: TranscodeJob,
-    progress_tx: Option<broadcast::Sender<TranscodeProgress>>,
+    progress_tx: Option<mpsc::Sender<TranscodeProgress>>,
 ) -> Result<PathBuf> {
     let temp_output = job
         .output_path
@@ -65,10 +65,10 @@ pub async fn run_transcode(
 async fn execute_transcode_inner(
     job: &TranscodeJob,
     temp_output: &Path,
-    progress_tx: Option<broadcast::Sender<TranscodeProgress>>,
+    progress_tx: Option<mpsc::Sender<TranscodeProgress>>,
 ) -> Result<()> {
     let mut cmd = Command::new("ffmpeg");
-    cmd.args(["-y", "-hide_banner"]);
+    cmd.args(["-y", "-hide_banner", "-threads", "0"]);
 
     // Input file
     cmd.arg("-i").arg(&job.input_path);
@@ -145,7 +145,10 @@ async fn execute_transcode_inner(
 
             // Video Encoder configuration
             let encoder = match job.plan.encoder {
-                HardwareEncoder::Auto => HardwareEncoder::CpuX264,
+                HardwareEncoder::Auto => {
+                    let hw = crate::hardware::detect_hardware_encoders().await;
+                    hw.recommended_encoder
+                }
                 other => other,
             };
 
@@ -159,7 +162,7 @@ async fn execute_transcode_inner(
                         "-c:v",
                         "h264_nvenc",
                         "-preset",
-                        "p6", // High quality
+                        "p4", // High speed and excellent quality on RTX
                         "-tune",
                         "hq",
                         "-b:v",
@@ -300,7 +303,7 @@ async fn execute_transcode_inner(
         }
 
         let trimmed = line.trim();
-        if let Some(val) = trimmed.strip_prefix("out_time_ms=") {
+        if let Some(val) = trimmed.strip_prefix("out_time_us=").or_else(|| trimmed.strip_prefix("out_time_ms=")) {
             if let Ok(us) = val.parse::<u64>() {
                 let secs = (us as f64) / 1_000_000.0;
                 current_progress.current_time_secs = secs;
@@ -311,23 +314,23 @@ async fn execute_transcode_inner(
                     let remaining_secs = (total_duration - secs).max(0.0);
                     current_progress.eta_seconds = remaining_secs / current_progress.speed_multiplier;
                 }
-
-                if let Some(tx) = &progress_tx {
-                    let _ = tx.send(current_progress.clone());
-                }
             }
         } else if let Some(val) = trimmed.strip_prefix("total_size=") {
             if let Ok(sz) = val.parse::<u64>() {
                 current_progress.current_size_bytes = sz;
             }
         } else if let Some(val) = trimmed.strip_prefix("speed=") {
-            let s = val.trim_end_matches('x');
+            let s = val.trim_end_matches('x').trim();
             if let Ok(spd) = s.parse::<f64>() {
                 current_progress.speed_multiplier = spd;
             }
         } else if let Some(val) = trimmed.strip_prefix("fps=") {
             if let Ok(fps) = val.parse::<f64>() {
                 current_progress.fps = fps;
+            }
+        } else if trimmed.starts_with("progress=") {
+            if let Some(tx) = &progress_tx {
+                let _ = tx.send(current_progress.clone()).await;
             }
         }
     }
@@ -346,8 +349,9 @@ async fn execute_transcode_inner(
     // Send 100% completion
     current_progress.percent = 100.0;
     current_progress.eta_seconds = 0.0;
+    current_progress.stage = "Finished".to_string();
     if let Some(tx) = &progress_tx {
-        let _ = tx.send(current_progress);
+        let _ = tx.send(current_progress).await;
     }
 
     Ok(())
